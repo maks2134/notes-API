@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: notes-api-postgres
+    environment:
+      POSTGRES_PASSWORD: notes  
+      POSTGRES_DB: notes_api_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./migrations:/docker-entrypoint-initdb.d/migrations
+
+volumes:
+  postgres_data:
