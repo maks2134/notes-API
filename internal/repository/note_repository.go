@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"notes-api/internal/model"
 	"time"
 )
@@ -46,7 +47,12 @@ func (r *PostgresNoteRepository) GetAll(userID int64) ([]*model.Note, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(rows)
 
 	notes := make([]*model.Note, 0)
 	for rows.Next() {

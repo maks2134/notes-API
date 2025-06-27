@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"notes-api/internal/api/handler"
@@ -29,7 +30,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection error: %v", err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(db)
 
 	noteRepo := repository.NewPostgresNoteRepository(db)
 	userRepo := repository.NewUserRepository(db)

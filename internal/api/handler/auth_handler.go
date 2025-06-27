@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"notes-api/internal/model"
@@ -39,13 +40,19 @@ func decodeJSON(r *http.Request, v interface{}) error {
 func respondError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	err := json.NewEncoder(w).Encode(map[string]string{"error": message})
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func respondJSON(w http.ResponseWriter, code int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(data)
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // Register godoc

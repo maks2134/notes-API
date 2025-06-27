@@ -16,10 +16,6 @@ type AuthService struct {
 	userRepo *repository.UserRepository
 }
 
-//func NewAuthService(userRepo *repository.UserRepository) *AuthService {
-//	return &AuthService{userRepo: userRepo}
-//}
-
 func (s *AuthService) Register(user *model.User) error {
 	// Check if user exists
 	if _, err := s.userRepo.GetByUsername(user.Username); err == nil {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"notes-api/internal/model"
 	"notes-api/internal/service"
@@ -41,7 +42,10 @@ func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(notes)
+	err = json.NewEncoder(w).Encode(notes)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // CreateNote godoc
@@ -76,7 +80,10 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(note)
+	err = json.NewEncoder(w).Encode(note)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // GetNote godoc
@@ -111,7 +118,10 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(note)
+	err = json.NewEncoder(w).Encode(note)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // UpdateNote godoc
@@ -154,7 +164,10 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(note)
+	err = json.NewEncoder(w).Encode(note)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // DeleteNote godoc
