@@ -29,15 +29,34 @@ func (r *PostgresNoteRepository) Create(note *model.Note) error {
 }
 
 func (r *PostgresNoteRepository) GetByID(id int64, userID int64) (*model.Note, error) {
-	query := `SELECT id, title, content, user_id, created_at, updated_at FROM notes WHERE id = $1 AND user_id = $2;`
+	// 1. Получаем саму заметку
+	queryNote := `SELECT id, title, content, user_id, created_at, updated_at FROM notes WHERE id = $1 AND user_id = $2;`
 	note := new(model.Note)
-	err := r.db.QueryRow(query, id, userID).Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.CreatedAt, &note.UpdatedAt)
+	err := r.db.QueryRow(queryNote, id, userID).Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.CreatedAt, &note.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("заметка не найдена")
 		}
 		return nil, err
 	}
+
+	// 2. Получаем все чек-листы для этой заметки
+	queryItems := `SELECT id, text, completed, note_id, created_at, updated_at FROM checklist_items WHERE note_id = $1 ORDER BY created_at ASC;`
+	rows, err := r.db.Query(queryItems, id)
+	if err != nil {
+
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		item := new(model.ChecklistItem)
+		if err := rows.Scan(&item.ID, &item.Text, &item.Completed, &item.NoteID, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		note.ChecklistItems = append(note.ChecklistItems, item)
+	}
+
 	return note, nil
 }
 
