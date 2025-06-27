@@ -79,3 +79,4 @@ debug
 
 # Local development files
 local.*
+qodana.yaml

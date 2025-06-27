@@ -18,20 +18,16 @@ import (
 )
 
 // @title Notes API
-// @version 1.1
-// @description Это сервер для приложения заметок с поддержкой чек-листов.
+// @version 1.3
+// @description Это сервер для приложения заметок с поддержкой вложенных таблиц.
 // @termsOfService http://swagger.io/terms/
-
 // @contact.name API Support
 // @contact.url http://www.swagger.io/support
 // @contact.email support@swagger.io
-
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
 // @host localhost:8080
 // @BasePath /api/v1
-
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
 // @name Authorization
@@ -56,26 +52,27 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	noteRepo := repository.NewPostgresNoteRepository(db)
 	checklistItemRepo := repository.NewPostgresChecklistItemRepository(db)
+	noteTableRepo := repository.NewPostgresNoteTableRepository(db)
 
 	authService := service.NewAuthService(userRepo)
 	noteService := service.NewNoteService(noteRepo)
 	checklistItemService := service.NewChecklistItemService(checklistItemRepo, noteRepo)
+	noteTableService := service.NewNoteTableService(noteTableRepo, noteRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	noteHandler := handler.NewNoteHandler(noteService)
 	checklistItemHandler := handler.NewChecklistItemHandler(checklistItemService)
+	noteTableHandler := handler.NewNoteTableHandler(noteTableService)
 
 	r := mux.NewRouter()
-
 	api := r.PathPrefix("/api/v1").Subrouter()
 
 	authRouter := api.PathPrefix("/auth").Subrouter()
 	authHandler.RegisterRoutes(authRouter)
 
-	protectedRouter := api.PathPrefix("").Subrouter()
-	protectedRouter.Use(handler.AuthMiddleware)
+	notesRouter := api.PathPrefix("/notes").Subrouter()
+	notesRouter.Use(handler.AuthMiddleware)
 
-	notesRouter := protectedRouter.PathPrefix("/notes").Subrouter()
 	notesRouter.HandleFunc("", noteHandler.GetNotes).Methods("GET")
 	notesRouter.HandleFunc("", noteHandler.CreateNote).Methods("POST")
 	notesRouter.HandleFunc("/{id:[0-9]+}", noteHandler.GetNote).Methods("GET")
@@ -83,8 +80,8 @@ func main() {
 	notesRouter.HandleFunc("/{id:[0-9]+}", noteHandler.DeleteNote).Methods("DELETE")
 
 	checklistItemHandler.RegisterRoutes(notesRouter)
+	noteTableHandler.RegisterRoutes(notesRouter)
 
-	// Доступен по адресу http://localhost:8080/swagger/index.html
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	log.Printf("Сервер запускается на порту %s", cfg.Port)

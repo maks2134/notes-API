@@ -17,9 +17,12 @@ func NewPostgresNoteRepository(db *sql.DB) *PostgresNoteRepository {
 }
 
 func (r *PostgresNoteRepository) Create(note *model.Note) error {
-	query := `INSERT INTO notes (title, content, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id;`
+	query := `INSERT INTO notes (title, content, user_id, style, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
 	now := time.Now()
-	err := r.db.QueryRow(query, note.Title, note.Content, note.UserID, now, now).Scan(&note.ID)
+	if note.Style == "" {
+		note.Style = model.StyleNormal
+	}
+	err := r.db.QueryRow(query, note.Title, note.Content, note.UserID, note.Style, now, now).Scan(&note.ID)
 	if err != nil {
 		return err
 	}
@@ -29,10 +32,9 @@ func (r *PostgresNoteRepository) Create(note *model.Note) error {
 }
 
 func (r *PostgresNoteRepository) GetByID(id int64, userID int64) (*model.Note, error) {
-	// 1. Получаем саму заметку
-	queryNote := `SELECT id, title, content, user_id, created_at, updated_at FROM notes WHERE id = $1 AND user_id = $2;`
+	queryNote := `SELECT id, title, content, user_id, style, created_at, updated_at FROM notes WHERE id = $1 AND user_id = $2;`
 	note := new(model.Note)
-	err := r.db.QueryRow(queryNote, id, userID).Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.CreatedAt, &note.UpdatedAt)
+	err := r.db.QueryRow(queryNote, id, userID).Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.Style, &note.CreatedAt, &note.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("заметка не найдена")
@@ -40,28 +42,33 @@ func (r *PostgresNoteRepository) GetByID(id int64, userID int64) (*model.Note, e
 		return nil, err
 	}
 
-	// 2. Получаем все чек-листы для этой заметки
-	queryItems := `SELECT id, text, completed, note_id, created_at, updated_at FROM checklist_items WHERE note_id = $1 ORDER BY created_at ASC;`
+	queryItems := `SELECT id, text, completed, note_id, style, created_at, updated_at FROM checklist_items WHERE note_id = $1 ORDER BY created_at ASC;`
 	rows, err := r.db.Query(queryItems, id)
 	if err != nil {
-
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		item := new(model.ChecklistItem)
-		if err := rows.Scan(&item.ID, &item.Text, &item.Completed, &item.NoteID, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Text, &item.Completed, &item.NoteID, &item.Style, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		note.ChecklistItems = append(note.ChecklistItems, item)
 	}
 
+	tableRepo := NewPostgresNoteTableRepository(r.db)
+	tables, err := tableRepo.GetTablesByNoteID(note.ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	note.Tables = tables
+
 	return note, nil
 }
 
 func (r *PostgresNoteRepository) GetAll(userID int64) ([]*model.Note, error) {
-	query := `SELECT id, title, content, user_id, created_at, updated_at FROM notes WHERE user_id = $1;`
+	query := `SELECT id, title, content, user_id, style, created_at, updated_at FROM notes WHERE user_id = $1;`
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
@@ -76,7 +83,7 @@ func (r *PostgresNoteRepository) GetAll(userID int64) ([]*model.Note, error) {
 	notes := make([]*model.Note, 0)
 	for rows.Next() {
 		note := new(model.Note)
-		if err = rows.Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.CreatedAt, &note.UpdatedAt); err != nil {
+		if err = rows.Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.Style, &note.CreatedAt, &note.UpdatedAt); err != nil {
 			return nil, err
 		}
 		notes = append(notes, note)
@@ -85,9 +92,12 @@ func (r *PostgresNoteRepository) GetAll(userID int64) ([]*model.Note, error) {
 }
 
 func (r *PostgresNoteRepository) Update(note *model.Note, userID int64) error {
-	query := `UPDATE notes SET title = $1, content = $2, updated_at = $3 WHERE id = $4 AND user_id = $5;`
+	query := `UPDATE notes SET title = $1, content = $2, style = $3, updated_at = $4 WHERE id = $5 AND user_id = $6;`
 	now := time.Now()
-	res, err := r.db.Exec(query, note.Title, note.Content, now, note.ID, userID)
+	if note.Style == "" {
+		note.Style = model.StyleNormal
+	}
+	res, err := r.db.Exec(query, note.Title, note.Content, note.Style, now, note.ID, userID)
 	if err != nil {
 		return err
 	}

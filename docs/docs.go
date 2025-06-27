@@ -584,6 +584,195 @@ const docTemplate = `{
                 }
             }
         },
+        "/notes/{note_id}/tables": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создает новую вложенную таблицу в существующей заметке",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Create a table within a note",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Note ID",
+                        "name": "note_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Table Title and Columns",
+                        "name": "table_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateNoteTableRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.NoteTable"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{note_id}/tables/{table_id}/rows": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Добавляет новую строку данных в существующую таблицу",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tables"
+                ],
+                "summary": "Add a row to a table",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Note ID (для URL)",
+                        "name": "note_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "table_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cell values in correct order",
+                        "name": "row_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AddTableRowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.TableRow"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/register": {
             "post": {
                 "description": "Создает нового пользователя",
@@ -638,6 +827,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "model.AddTableRowRequest": {
+            "type": "object",
+            "properties": {
+                "cells": {
+                    "description": "Значения ячеек должны идти в том же порядке, что и колонки",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"Реализовать API\"",
+                        "\"2024-12-31\"",
+                        "\"В процессе\"]"
+                    ]
+                }
+            }
+        },
         "model.ChecklistItem": {
             "type": "object",
             "properties": {
@@ -656,12 +862,41 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 1
                 },
+                "style": {
+                    "description": "\u003c-- НОВОЕ ПОЛЕ",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.TextStyle"
+                        }
+                    ],
+                    "example": "italic"
+                },
                 "text": {
                     "type": "string",
                     "example": "Купить молоко"
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "model.CreateNoteTableRequest": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"Задача\"",
+                        "\"Срок\"",
+                        "\"Статус\"]"
+                    ]
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Список задач"
                 }
             }
         },
@@ -704,6 +939,20 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 1
                 },
+                "style": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.TextStyle"
+                        }
+                    ],
+                    "example": "bold"
+                },
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.NoteTable"
+                    }
+                },
                 "title": {
                     "type": "string",
                     "example": "My First Note"
@@ -715,6 +964,93 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "model.NoteTable": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TableColumn"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "note_id": {
+                    "type": "integer"
+                },
+                "rows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TableRow"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TableCell": {
+            "type": "object",
+            "properties": {
+                "column_id": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.TableColumn": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.TableRow": {
+            "type": "object",
+            "properties": {
+                "cells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TableCell"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "position": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.TextStyle": {
+            "type": "string",
+            "enum": [
+                "normal",
+                "bold",
+                "italic"
+            ],
+            "x-enum-varnames": [
+                "StyleNormal",
+                "StyleBold",
+                "StyleItalic"
+            ]
         },
         "model.User": {
             "type": "object",
@@ -750,12 +1086,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.1",
+	Version:          "1.3",
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Notes API",
-	Description:      "Это сервер для приложения заметок с поддержкой чек-листов.",
+	Description:      "Это сервер для приложения заметок с поддержкой вложенных таблиц.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
