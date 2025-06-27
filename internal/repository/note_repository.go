@@ -16,13 +16,9 @@ func NewPostgresNoteRepository(db *sql.DB) *PostgresNoteRepository {
 }
 
 func (r *PostgresNoteRepository) Create(note *model.Note) error {
-	query := `
-		INSERT INTO notes (title, content, created_at, updated_at)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id;
-	`
+	query := `INSERT INTO notes (title, content, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id;`
 	now := time.Now()
-	err := r.db.QueryRow(query, note.Title, note.Content, now, now).Scan(&note.ID)
+	err := r.db.QueryRow(query, note.Title, note.Content, note.UserID, now, now).Scan(&note.ID)
 	if err != nil {
 		return err
 	}
@@ -31,14 +27,10 @@ func (r *PostgresNoteRepository) Create(note *model.Note) error {
 	return nil
 }
 
-func (r *PostgresNoteRepository) GetByID(id int64) (*model.Note, error) {
-	query := `
-		SELECT id, title, content, created_at, updated_at
-		FROM notes
-		WHERE id = $1 AND user_id = $2;
-	`
+func (r *PostgresNoteRepository) GetByID(id int64, userID int64) (*model.Note, error) {
+	query := `SELECT id, title, content, user_id, created_at, updated_at FROM notes WHERE id = $1 AND user_id = $2;`
 	note := new(model.Note)
-	err := r.db.QueryRow(query, id).Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt)
+	err := r.db.QueryRow(query, id, userID).Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.CreatedAt, &note.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("заметка не найдена")
@@ -48,13 +40,9 @@ func (r *PostgresNoteRepository) GetByID(id int64) (*model.Note, error) {
 	return note, nil
 }
 
-func (r *PostgresNoteRepository) GetAll() ([]*model.Note, error) {
-	query := `
-        SELECT id, title, content, created_at, updated_at
-        FROM notes
-        WHERE user_id = $1;
-	`
-	rows, err := r.db.Query(query)
+func (r *PostgresNoteRepository) GetAll(userID int64) ([]*model.Note, error) {
+	query := `SELECT id, title, content, user_id, created_at, updated_at FROM notes WHERE user_id = $1;`
+	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +51,7 @@ func (r *PostgresNoteRepository) GetAll() ([]*model.Note, error) {
 	notes := make([]*model.Note, 0)
 	for rows.Next() {
 		note := new(model.Note)
-		if err = rows.Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt, &note.UpdatedAt); err != nil {
+		if err = rows.Scan(&note.ID, &note.Title, &note.Content, &note.UserID, &note.CreatedAt, &note.UpdatedAt); err != nil {
 			return nil, err
 		}
 		notes = append(notes, note)
@@ -71,13 +59,10 @@ func (r *PostgresNoteRepository) GetAll() ([]*model.Note, error) {
 	return notes, nil
 }
 
-func (r *PostgresNoteRepository) Update(note *model.Note) error {
-	query := `
-		UPDATE notes
-		SET title = $1, content = $2, updated_at = $3
-		WHERE id = $4;
-	`
-	res, err := r.db.Exec(query, note.Title, note.Content, time.Now(), note.ID)
+func (r *PostgresNoteRepository) Update(note *model.Note, userID int64) error {
+	query := `UPDATE notes SET title = $1, content = $2, updated_at = $3 WHERE id = $4 AND user_id = $5;`
+	now := time.Now()
+	res, err := r.db.Exec(query, note.Title, note.Content, now, note.ID, userID)
 	if err != nil {
 		return err
 	}
@@ -87,18 +72,15 @@ func (r *PostgresNoteRepository) Update(note *model.Note) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("заметка не найдена")
+		return errors.New("заметка не найдена или у вас нет прав на её изменение")
 	}
-	note.UpdatedAt = time.Now()
+	note.UpdatedAt = now
 	return nil
 }
 
-func (r *PostgresNoteRepository) Delete(id int64) error {
-	query := `
-		DELETE FROM notes
-		WHERE id = $1;
-	`
-	res, err := r.db.Exec(query, id)
+func (r *PostgresNoteRepository) Delete(id int64, userID int64) error {
+	query := `DELETE FROM notes WHERE id = $1 AND user_id = $2;`
+	res, err := r.db.Exec(query, id, userID)
 	if err != nil {
 		return err
 	}
@@ -107,7 +89,7 @@ func (r *PostgresNoteRepository) Delete(id int64) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("заметка не найдена")
+		return errors.New("заметка не найдена или у вас нет прав на её удаление")
 	}
 	return nil
 }

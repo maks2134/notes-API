@@ -2,14 +2,10 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"notes-api/internal/model"
 	"notes-api/internal/repository"
 	"notes-api/internal/util"
-)
-
-var (
-	ErrUserExists         = errors.New("user already exists")
-	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
 type AuthService struct {
@@ -21,28 +17,35 @@ func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 }
 
 func (s *AuthService) Register(user *model.User) error {
-	// Check if user exists
-	if _, err := s.userRepo.GetByUsername(user.Username); err == nil {
-		return ErrUserExists
-	}
+	// Логируем перед хешированием
+	fmt.Printf("Registering user: %s with password: %s\n", user.Username, user.Password)
 
-	hashedPassword, err := util.HashPassword(user.Password)
+	hashed, err := util.HashPassword(user.Password)
 	if err != nil {
+		fmt.Printf("Hashing error: %v\n", err)
 		return err
 	}
 
-	user.Password = hashedPassword
+	user.Password = hashed
+	fmt.Printf("Storing hash: %s\n", user.Password)
+
 	return s.userRepo.Create(user)
 }
 
 func (s *AuthService) Login(req *model.LoginRequest) (string, error) {
 	user, err := s.userRepo.GetByUsername(req.Username)
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return "", fmt.Errorf("user not found: %v", err) // Добавим логирование
 	}
 
-	if !util.CheckPasswordHash(req.Password, user.Password) {
-		return "", ErrInvalidCredentials
+	fmt.Printf("Input password: %s\n", req.Password)
+	fmt.Printf("Stored hash: %s\n", user.Password)
+
+	match := util.CheckPasswordHash(req.Password, user.Password)
+	fmt.Printf("Password match: %v\n", match)
+
+	if !match {
+		return "", errors.New("invalid credentials (password mismatch)")
 	}
 
 	return util.GenerateJWT(user.ID)

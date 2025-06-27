@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"notes-api/internal/model"
 	"notes-api/internal/service"
@@ -9,6 +11,10 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+type contextKey string
+
+const userIDKey contextKey = "userID"
 
 type AuthHandler struct {
 	authService *service.AuthService
@@ -56,16 +62,27 @@ func respondJSON(w http.ResponseWriter, code int, data interface{}) {
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var user model.User
 	if err := decodeJSON(r, &user); err != nil {
-		respondError(w, http.StatusBadRequest, "Неверный формат запроса")
+		respondError(w, http.StatusBadRequest, "Invalid request format")
 		return
 	}
 
+	// Валидация пароля
+	if user.Password == "" {
+		respondError(w, http.StatusBadRequest, "Password cannot be empty")
+		return
+	}
+
+	log.Printf("Registering user: %s", user.Username) // Логируем только имя
 	if err := h.authService.Register(&user); err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, user)
+	// Не возвращаем пароль в ответе
+	respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"id":       user.ID,
+		"username": user.Username,
+	})
 }
 
 // Login godoc
@@ -97,17 +114,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("Authorization")
-		if token == "" {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
 			respondError(w, http.StatusUnauthorized, "Требуется токен авторизации")
 			return
 		}
 
-		if _, err := util.ParseJWT(token); err != nil {
-			respondError(w, http.StatusUnauthorized, "Неверный токен")
+		userID, err := util.ParseJWT(authHeader)
+		if err != nil {
+			respondError(w, http.StatusUnauthorized, "Неверный или просроченный токен")
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), userIDKey, userID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
